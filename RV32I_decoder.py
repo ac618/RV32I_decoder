@@ -5,6 +5,11 @@ dir = os.path.dirname(os.path.abspath(__file__))
 input_file = 'inst_hex.txt'
 output_file = 'riscv_inst.txt'
 
+
+def sign_extension(value, bits):
+    sign_bit = 1 << (bits - 1)
+    return (value & (sign_bit - 1)) - (value & sign_bit)
+
 def decode_riscv(instruction):
     opcode = instruction[-7:]
     funct3 = instruction[-15:-12]
@@ -12,13 +17,13 @@ def decode_riscv(instruction):
     rd = int(instruction[-12:-7], 2)
     rs1 = int(instruction[-20:-15], 2)
     rs2 = int(instruction[-25:-20], 2)
-    imm_i = int(instruction[-32:-20], 2)
-    imm_s = int(instruction[-32:-25] + instruction[-12:-7], 2)
-    imm_b = int(instruction[-32] + instruction[-8] +
-                instruction[-31:-25] + instruction[-12:-8] + '0', 2)
+    imm_i = sign_extension(int(instruction[-32:-20], 2), 12)
+    imm_s = sign_extension(int(instruction[-32:-25] + instruction[-12:-7], 2), 12)
+    imm_b = sign_extension(int(instruction[-32] + instruction[-8] +
+                instruction[-31:-25] + instruction[-12:-8] + '0', 2), 12)
     imm_u = int(instruction[-32:-12] + '0' * 12, 2)
-    imm_j = int(instruction[-32] + instruction[-20:-12] +
-                instruction[-21] + instruction[-31:-21] + '0', 2)
+    imm_j = sign_extension(int(instruction[-32] + instruction[-20:-12] +
+                instruction[-21] + instruction[-31:-21] + '0', 2), 21)
 
     # identify instructions
     if opcode == "0110011": # R type
@@ -80,14 +85,14 @@ def decode_riscv(instruction):
 insts = []
 with open(os.path.join(dir, 'files', input_file), 'r') as f:
     for line in f:
-        insts.append(line[:-1])
+        insts.append(line.replace('\n', ''))
 
 # decode RV32I instructions
 insts_dec = []
 for inst in insts:
     instruction_binary = BitArray(hex=inst).bin
     decoded_instruction = decode_riscv(instruction_binary)
-    insts_dec.append(decoded_instruction)
+    insts_dec.append(f"{inst}: {decoded_instruction}")
     print(f"{inst}: {decoded_instruction}")
 
 # write results
